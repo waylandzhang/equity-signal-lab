@@ -1,27 +1,28 @@
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import Ridge, ElasticNet
+from sklearn.linear_model import RidgeCV, ElasticNetCV
 import lightgbm as lgb
 from typing import Dict, Any
 
-def train_ridge(X: pd.DataFrame, y: pd.Series, alpha: float = 1.0) -> Dict[str, Any]:
+def train_ridge(X: pd.DataFrame, y: pd.Series,
+                alphas: tuple = (0.01, 0.1, 1.0, 10.0, 100.0)) -> Dict[str, Any]:
     """
-    Train Ridge regression model.
+    Train Ridge regression with built-in alpha selection via leave-one-out CV.
 
     Args:
         X: Feature matrix
         y: Target variable
-        alpha: Regularization strength
+        alphas: Candidate regularization strengths
 
     Returns:
         Dictionary with model and metadata
     """
-    model = Ridge(alpha=alpha)
+    model = RidgeCV(alphas=alphas)
     model.fit(X, y)
 
     return {
         'model': model,
-        'alpha': alpha,
+        'alpha': float(model.alpha_),
         'intercept': model.intercept_,
         'coef': model.coef_,
         'n_features': X.shape[1]
@@ -31,31 +32,31 @@ def train_ridge(X: pd.DataFrame, y: pd.Series, alpha: float = 1.0) -> Dict[str, 
 def train_elastic_net(
     X: pd.DataFrame,
     y: pd.Series,
-    alpha: float = 0.0001,
-    l1_ratio: float = 0.1
+    l1_ratio: tuple = (0.1, 0.5, 0.9),
+    alphas: int = 20
 ) -> Dict[str, Any]:
     """
-    Train Elastic Net model.
+    Train Elastic Net with built-in alpha and l1_ratio selection via 3-fold CV.
 
     Args:
         X: Feature matrix
         y: Target variable
-        alpha: Regularization strength
-        l1_ratio: 0=Ridge, 1=Lasso, 0.5=balanced
+        l1_ratio: Candidate L1/L2 mixing ratios
+        alphas: Number of alpha values to try per l1_ratio
 
     Returns:
         Dictionary with model and metadata
     """
-    model = ElasticNet(alpha=alpha, l1_ratio=l1_ratio, max_iter=10000)
+    model = ElasticNetCV(l1_ratio=l1_ratio, alphas=alphas,
+                         cv=3, max_iter=10000)
     model.fit(X, y)
 
-    # Count non-zero coefficients (selected features)
     n_selected = np.sum(model.coef_ != 0)
 
     return {
         'model': model,
-        'alpha': alpha,
-        'l1_ratio': l1_ratio,
+        'alpha': float(model.alpha_),
+        'l1_ratio': float(model.l1_ratio_),
         'intercept': model.intercept_,
         'coef': model.coef_,
         'n_features': X.shape[1],

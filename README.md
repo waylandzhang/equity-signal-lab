@@ -41,20 +41,32 @@ PYTHONPATH=. python scripts/predict.py --date 2026-02-13 --model ridge --feature
 
 ## Results
 
-Out-of-sample CV results (overnight_return, sample dataset, expanding window 21-756 days, corporate-action days filtered):
+Out-of-sample CV results (sample dataset, expanding window 21-756 days, corporate-action days filtered, hyperparameters learned per fold):
+
+**Overnight return:**
 
 | Model | R² | Dir Acc | Baseline Acc | IC (x-sectional) | Sharpe (portfolio) |
 |-------|------|---------|--------------|-------------------|--------------------|
-| Ridge v1 | -0.013 | 0.592 | 0.602 | 0.025 | 2.61 |
-| ElasticNet v1 | -0.012 | 0.592 | 0.602 | 0.027 | 2.63 |
-| Ridge v2 | -0.012 | 0.593 | 0.603 | 0.042 | 2.82 |
-| ElasticNet v2 | -0.013 | 0.590 | 0.603 | 0.028 | 2.45 |
+| Ridge v1 | -0.011 | 0.596 | 0.602 | 0.028 | 2.72 |
+| ElasticNet v1 | -0.008 | 0.598 | 0.602 | 0.020 | 2.81 |
+| Ridge v2 | -0.018 | 0.588 | 0.603 | 0.038 | 2.67 |
+| ElasticNet v2 | -0.006 | 0.605 | 0.603 | 0.041 | 2.99 |
+
+**Intraday return:**
+
+| Model | R² | Dir Acc | Baseline Acc | IC (x-sectional) | Sharpe (portfolio) |
+|-------|------|---------|--------------|-------------------|--------------------|
+| Ridge v1 | -0.007 | 0.491 | 0.494 | -0.006 | 0.19 |
+| ElasticNet v1 | -0.007 | 0.489 | 0.494 | -0.013 | 0.12 |
+| Ridge v2 | -0.006 | 0.490 | 0.493 | -0.003 | 0.43 |
+| ElasticNet v2 | -0.009 | 0.492 | 0.493 | 0.002 | 0.32 |
 
 **Key findings:**
-- No model beats the always-long baseline (~60% direction accuracy)
-- All models underperform baseline by ~1%, meaning the features add noise, not signal
-- High portfolio Sharpe (2.5-2.8) reflects the sample period's bull market, not model alpha
-- Cross-sectional IC is positive but tiny (0.02-0.04) - negligible stock-picking power
+- Overnight: ElasticNet v2 marginally beats baseline (60.5% vs 60.3%) with learned hyperparameters
+- Intraday: no model beats the baseline (~49% direction accuracy, near coin-flip)
+- High overnight Sharpe (2.7-3.0) reflects the sample period's bull market, not model alpha
+- Intraday Sharpe is low (0.1-0.4), consistent with weak signal
+- Cross-sectional IC is near zero for both targets
 - R² is negative across all models (expected for daily equity returns)
 
 ## Methodology
@@ -67,7 +79,7 @@ Out-of-sample CV results (overnight_return, sample dataset, expanding window 21-
 - **IC (Spearman)** - rank correlation between predicted and actual; industry-standard alpha quality metric
 - **Sharpe Ratio** - risk-adjusted return of a simplified long/short strategy (no transaction costs)
 
-**Hyperparameters:** Fixed conservative defaults (Ridge alpha=1.0, ElasticNet alpha=0.0001/l1=0.1). No grid search - with many CV folds per evaluation and a small feature set, the computational cost outweighs expected gains.
+**Hyperparameters:** Learned across the basket via built-in CV. Ridge uses leave-one-out CV over alphas {0.01, 0.1, 1.0, 10.0, 100.0}. ElasticNet uses 3-fold CV over 20 alpha values and l1_ratio {0.1, 0.5, 0.9}. Hyperparameters are re-selected in each outer CV fold to avoid data leakage.
 
 ## Testing
 
@@ -128,20 +140,32 @@ PYTHONPATH=. python scripts/predict.py --date 2026-02-13 --model ridge --feature
 
 ## 实验结果
 
-样本外 CV 结果（目标为 `overnight_return`，样本数据集，窗口从 21 到 756 天扩展，公司行为日期已过滤）：
+样本外 CV 结果（样本数据集，窗口从 21 到 756 天扩展，公司行为日期已过滤，每折内自动学习超参数）：
+
+**隔夜收益：**
 
 | 模型 | R² | 方向准确率 | 基准准确率 | IC（横截面） | Sharpe（组合） |
 |------|------|------------|------------|---------------|----------------|
-| Ridge v1 | -0.013 | 0.592 | 0.602 | 0.025 | 2.61 |
-| ElasticNet v1 | -0.012 | 0.592 | 0.602 | 0.027 | 2.63 |
-| Ridge v2 | -0.012 | 0.593 | 0.603 | 0.042 | 2.82 |
-| ElasticNet v2 | -0.013 | 0.590 | 0.603 | 0.028 | 2.45 |
+| Ridge v1 | -0.011 | 0.596 | 0.602 | 0.028 | 2.72 |
+| ElasticNet v1 | -0.008 | 0.598 | 0.602 | 0.020 | 2.81 |
+| Ridge v2 | -0.018 | 0.588 | 0.603 | 0.038 | 2.67 |
+| ElasticNet v2 | -0.006 | 0.605 | 0.603 | 0.041 | 2.99 |
+
+**日内收益：**
+
+| 模型 | R² | 方向准确率 | 基准准确率 | IC（横截面） | Sharpe（组合） |
+|------|------|------------|------------|---------------|----------------|
+| Ridge v1 | -0.007 | 0.491 | 0.494 | -0.006 | 0.19 |
+| ElasticNet v1 | -0.007 | 0.489 | 0.494 | -0.013 | 0.12 |
+| Ridge v2 | -0.006 | 0.490 | 0.493 | -0.003 | 0.43 |
+| ElasticNet v2 | -0.009 | 0.492 | 0.493 | 0.002 | 0.32 |
 
 **主要结论：**
-- 没有模型超过始终做多基准（约 60% 方向准确率）
-- 所有模型较基准低约 1%，说明当前特征更多带来噪声而非有效信号
-- 较高的组合 Sharpe（2.5-2.8）主要来自样本期间的牛市环境，不代表模型 alpha
-- 横截面 IC 为正但很小（0.02-0.04），选股能力有限
+- 隔夜：ElasticNet v2 略微超过基准（60.5% vs 60.3%），使用自动学习的超参数
+- 日内：没有模型超过基准（约 49% 方向准确率，接近随机）
+- 较高的隔夜 Sharpe（2.7-3.0）主要来自样本期间的牛市环境，不代表模型 alpha
+- 日内 Sharpe 较低（0.1-0.4），信号较弱
+- 横截面 IC 在两个目标上均接近零
 - 所有模型 R² 为负（在日频收益预测中较常见）
 
 ## 方法说明
@@ -154,7 +178,7 @@ PYTHONPATH=. python scripts/predict.py --date 2026-02-13 --model ridge --feature
 - **IC（Spearman）**：预测值与真实值的秩相关；衡量 alpha 质量的常用指标
 - **Sharpe Ratio**：简化多空策略的风险调整后收益（未计交易成本）
 
-**超参数：** 使用保守固定值（Ridge alpha=1.0，ElasticNet alpha=0.0001/l1=0.1）。没有做网格搜索：在 CV 折数较多且特征规模较小的前提下，额外计算开销通常大于收益。
+**超参数：** 通过内置 CV 在整个股票篮子上自动学习。Ridge 使用留一法 CV，搜索 alpha {0.01, 0.1, 1.0, 10.0, 100.0}。ElasticNet 使用 3 折 CV，搜索 20 个 alpha 值和 l1_ratio {0.1, 0.5, 0.9}。每个外层 CV 折内重新选择超参数，避免数据泄漏。
 
 ## 测试
 

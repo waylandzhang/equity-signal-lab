@@ -18,13 +18,13 @@ def sample_data(df_with_returns):
 def test_train_ridge_returns_model(sample_data):
     X, y = sample_data
 
-    result = train_ridge(X, y, alpha=1.0)
+    result = train_ridge(X, y)
 
     assert 'model' in result
     assert 'alpha' in result
     assert 'intercept' in result
     assert 'coef' in result
-    assert result['alpha'] == 1.0
+    assert result['alpha'] > 0  # alpha chosen by LOO-CV
 
     # Model should be able to predict
     predictions = result['model'].predict(X)
@@ -34,12 +34,12 @@ def test_train_ridge_returns_model(sample_data):
 def test_train_elastic_net_returns_model(sample_data):
     X, y = sample_data
 
-    result = train_elastic_net(X, y, alpha=1.0, l1_ratio=0.5)
+    result = train_elastic_net(X, y)
 
     assert 'model' in result
     assert 'l1_ratio' in result
     assert 'n_features_selected' in result
-    assert result['l1_ratio'] == 0.5
+    assert result['l1_ratio'] > 0  # l1_ratio chosen by 3-fold CV
 
 
 def test_train_lightgbm_returns_model(sample_data):
