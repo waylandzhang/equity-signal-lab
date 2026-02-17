@@ -26,7 +26,7 @@ def load_data(filepath: str) -> pd.DataFrame:
     return df
 
 
-def calculate_returns(df: pd.DataFrame) -> pd.DataFrame:
+def calculate_returns(df: pd.DataFrame, verbose: bool = True) -> pd.DataFrame:
     """Calculate overnight and intraday returns for each ticker."""
     df = df.copy()
 
@@ -43,10 +43,11 @@ def calculate_returns(df: pd.DataFrame) -> pd.DataFrame:
     for col in ['overnight_return', 'intraday_return']:
         extreme = df[col].abs() > 0.5
         if extreme.any():
-            for idx in df[extreme].index:
-                row = df.loc[idx]
-                print(f"NaN corporate action: {row['Ticker']} {row['DATE'].date()} "
-                      f"{col}={row[col]:.4f}")
+            if verbose:
+                for idx in df[extreme].index:
+                    row = df.loc[idx]
+                    print(f"NaN corporate action: {row['Ticker']} {row['DATE'].date()} "
+                          f"{col}={row[col]:.4f}")
             df.loc[extreme, col] = np.nan
 
     return df

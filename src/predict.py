@@ -1,7 +1,42 @@
 import pickle
 import pandas as pd
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+
+FEATURE_FUNCTIONS = None  # lazy-loaded to avoid circular imports
+
+
+def _get_feature_functions():
+    global FEATURE_FUNCTIONS
+    if FEATURE_FUNCTIONS is None:
+        from src.features import engineer_features_v1, engineer_features_v2, engineer_features_v3
+        FEATURE_FUNCTIONS = {
+            'v1': engineer_features_v1,
+            'v2': engineer_features_v2,
+            'v3': engineer_features_v3,
+        }
+    return FEATURE_FUNCTIONS
+
+
+def load_model(model_path: str):
+    """Load a trained model from disk (pickle is safe for our own locally-generated models)."""
+    with open(model_path, 'rb') as f:
+        return pickle.load(f)
+
+
+def prepare_data(
+    feature_version: str,
+    data_path: str = 'data/raw/sample_tickers.xlsx',
+    verbose: bool = True,
+) -> pd.DataFrame:
+    """Load raw data, calculate returns, and engineer features (once for all tickers)."""
+    from src.data import load_data, calculate_returns
+
+    df = load_data(data_path)
+    df = calculate_returns(df, verbose=verbose)
+    df = _get_feature_functions()[feature_version](df)
+    return df
+
 
 def predict_next_period(
     ticker: str,
@@ -9,30 +44,24 @@ def predict_next_period(
     model_path: str,
     feature_version: str,
     target: str = 'overnight_return',
-    data_path: str = 'data/raw/sample_tickers.xlsx'
+    data_path: str = 'data/raw/sample_tickers.xlsx',
+    *,
+    model=None,
+    prepared_df: Optional[pd.DataFrame] = None,
 ) -> Dict[str, Any]:
     """
     Predict next period return for a ticker.
 
-    Uses pickle for model loading (standard ML practice for locally-generated trusted models).
+    For batch predictions pass *model* and *prepared_df* to avoid
+    reloading data and the model for every ticker.
     """
-    from src.data import load_data, calculate_returns
-    from src.features import engineer_features_v1, engineer_features_v2, engineer_features_v3
+    if model is None:
+        model = load_model(model_path)
 
-    FEATURE_FUNCTIONS = {
-        'v1': engineer_features_v1,
-        'v2': engineer_features_v2,
-        'v3': engineer_features_v3
-    }
-
-    # Load model (pickle is safe for our own trained models)
-    with open(model_path, 'rb') as f:
-        model = pickle.load(f)
-
-    # Load data up to date
-    df = load_data(data_path)
-    df = calculate_returns(df)
-    df = FEATURE_FUNCTIONS[feature_version](df)
+    if prepared_df is not None:
+        df = prepared_df
+    else:
+        df = prepare_data(feature_version, data_path)
 
     # Filter to date and ticker
     date_pd = pd.to_datetime(date)
@@ -70,5 +99,5 @@ def predict_next_period(
         'date': date,
         'target': target,
         'predicted_return': prediction,
-        'last_data_date': last_row['DATE'].strftime('%Y-%m-%d')
+        'last_data_date': last_row['DATE'].strftime('%Y-%m-%d'),
     }

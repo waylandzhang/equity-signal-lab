@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.predict import predict_next_period
+from src.predict import predict_next_period, load_model, prepare_data
 from src.data import load_data
 
 def main():
@@ -32,11 +32,14 @@ def main():
     # Model path
     model_path = f'results/models/{args.model}_{args.features}_{args.target}.pkl'
 
-    # If no ticker specified, predict for all
+    # Load model and prepare data once
+    model = load_model(model_path)
+    df = prepare_data(args.features, args.data, verbose=True)
+
+    # Determine tickers
     if args.ticker:
         tickers = [args.ticker]
     else:
-        df = load_data(args.data)
         tickers = df['Ticker'].unique()
 
     print(f"\n{'='*60}")
@@ -52,7 +55,9 @@ def main():
                 model_path=model_path,
                 feature_version=args.features,
                 target=args.target,
-                data_path=args.data
+                data_path=args.data,
+                model=model,
+                prepared_df=df,
             )
 
             print(f"{ticker}:")
